@@ -359,6 +359,7 @@ class MosaicImageStraightener:
         with tarfile.open(archive_path, "r:xz") as tar:
             with TemporaryDirectory() as tmpdir:
                 tmpdir = Path(tmpdir)
+                tmpdir.mkdir(exist_ok=True, parents=True)
                 tar.extractall(path=tmpdir)
                 imaps = {}
                 for dsdir in tmpdir.iterdir():
@@ -366,15 +367,16 @@ class MosaicImageStraightener:
                         # Load the mapper
                         if dsdir.suffix == '.json' and '_mapper' in dsdir.stem:
                             mapper = MosaicImageMapper.from_json(dsdir.read_text())
-                    # Load the curve maps
-                    win_name = dsdir.name
-                    datasets = []
-                    for dsfile in natsorted(dsdir.iterdir()):
-                        if not dsfile.is_file() or dsfile.suffix != '.nc':
-                            continue
-                        ds = load_dataset(dsfile)
-                        datasets.append(ds)
-                    imaps[win_name] = datasets
+                    else:
+                        # Load the curve maps
+                        win_name = dsdir.name
+                        datasets = []
+                        for dsfile in natsorted(dsdir.iterdir()):
+                            if not dsfile.is_file() or dsfile.suffix != '.nc':
+                                continue
+                            ds = load_dataset(dsfile)
+                            datasets.append(ds)
+                        imaps[win_name] = datasets
                 if mapper is None:
                     raise ValueError('MosaicImageMapper not found in archive')
                 return cls(imaps, mapper)
