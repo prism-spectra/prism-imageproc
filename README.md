@@ -1,5 +1,7 @@
 # mss-imageproc
 
+[![DOI](https://zenodo.org/badge/1201252361.svg)](https://zenodo.org/badge/latestdoi/1201252361)
+
 This repository contains the Python library `mss-imageproc`, which provides tools for processing images
 from instruments modeled using the Multi-Slit Spectrograph (MSS) Designer. The library includes functions
 applying image transformations to map detector images onto the focal plane of the instrument, as well as
