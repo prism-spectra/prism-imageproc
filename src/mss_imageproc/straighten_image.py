@@ -364,9 +364,9 @@ class MosaicMappedImage:
     @overload
     def straighten_image(
         self,
-        window: Optional[str],
+        window: str,
         *,
-        inplace: bool
+        inplace: bool = ...
     ) -> DataArray: ...
 
     @overload
@@ -374,12 +374,20 @@ class MosaicMappedImage:
         self,
         window: List[str],
         *,
-        inplace: bool
+        inplace: bool = ...
+    ) -> Dict[str, DataArray]: ...
+
+    @overload
+    def straighten_image(
+        self,
+        window: None = ...,
+        *,
+        inplace: bool = ...
     ) -> Dict[str, DataArray]: ...
 
     def straighten_image(
         self,
-        window: Optional[str | List[str]] = None,
+        window: Optional[str] | List[str] = None,
         *,
         inplace: bool = True
     ) -> DataArray | Dict[str, DataArray]:
