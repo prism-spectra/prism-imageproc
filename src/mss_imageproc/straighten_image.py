@@ -3,14 +3,15 @@ from __future__ import annotations
 from pathlib import Path
 import tarfile
 from tempfile import TemporaryDirectory
-from typing import Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
+from typing import ClassVar, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
 from xarray import Dataset, DataArray, concat, MergeError, load_dataset
 from astropy.units import Quantity
 import astropy.units as u
-from skimage.transform import warp, AffineTransform
+from skimage.transform import AffineTransform
+from scipy.ndimage import map_coordinates
 from natsort import natsorted
 from dataclasses import dataclass, field
-from numpy import arange, asarray, interp, meshgrid, sqrt, stack, nan, ndarray, where
+from numpy import arange, asarray, interp, sqrt, nan, ndarray
 from numpy.typing import NDArray
 from serde_dataclass import json_config, toml_config, JsonDataclass, TomlDataclass
 import astropy_xarray as _
@@ -23,6 +24,12 @@ ScaleType = Union[float, Tuple[float, float]]
 TranslationType = Tuple[float, float]
 PixelSizeType = Tuple[float, float]
 PaddingMode = Literal['constant', 'edge', 'symmetric', 'reflect', 'wrap']
+
+# Map skimage-only mode names to scipy.ndimage equivalents.
+_SKIMAGE_TO_SCIPY_MODE: Dict[str, str] = {
+    'edge': 'nearest',
+    'symmetric': 'mirror',
+}
 
 
 @dataclass
@@ -159,20 +166,22 @@ class MosaicImageMapper(JsonDataclass):
         """Render a 2D image onto the finalized full-resolution mosaic grid."""
         image_data = asarray(image)
         if image_data.ndim != 2:
-            raise ValueError('image must be a 2D array')
+            raise ValueError(f'image must be a 2D array, got {image_data.ndim}D')
         if self.source_x.size != image_data.shape[1]:
-            raise ValueError('source_x size must match image width')
+            raise ValueError(f'source_x size {self.source_x.size} must match image width {image_data.shape[1]}')
         if self.source_y.size != image_data.shape[0]:
-            raise ValueError('source_y size must match image height')
+            raise ValueError(f'source_y size {self.source_y.size} must match image height {image_data.shape[0]}')
 
         x_target = self.target_x
         y_target = self.target_y
         px, py = float(self.pixel_size[0]), float(self.pixel_size[1])
 
-        xx, yy = meshgrid(x_target, y_target)
+        # Broadcasting avoids allocating two full meshgrid arrays.
+        x_row = x_target[None, :]  # shape (1, nx)
+        y_col = y_target[:, None]  # shape (ny, 1)
         inv = self.transform.affine().inverse.params
-        src_x = inv[0, 0] * xx + inv[0, 1] * yy + inv[0, 2]
-        src_y = inv[1, 0] * xx + inv[1, 1] * yy + inv[1, 2]
+        src_x = inv[0, 0] * x_row + inv[0, 1] * y_col + inv[0, 2]  # (ny, nx)
+        src_y = inv[1, 0] * x_row + inv[1, 1] * y_col + inv[1, 2]  # (ny, nx)
 
         if self._use_linear_x:
             col = self._coord_to_index_linear(
@@ -185,15 +194,16 @@ class MosaicImageMapper(JsonDataclass):
                 src_y, self._source_y0, self._inv_dy, self.source_y.size)
         else:
             row = self._coord_to_index(src_y, self.source_y)
-        coords = stack((row, col), axis=0)
 
-        warped = warp(
-            image_data,
-            coords,
+        # Translate skimage-only mode names to scipy equivalents.
+        scipy_mode = _SKIMAGE_TO_SCIPY_MODE.get(mode, mode)
+        warped = map_coordinates(
+            image_data.astype(float, copy=False),
+            [row, col],
             order=order,
             cval=cval,
-            mode=mode,
-            preserve_range=True,
+            mode=scipy_mode,
+            prefilter=order > 1,
         )
         out = DataArray(
             warped,
@@ -235,16 +245,10 @@ class MosaicImageMapper(JsonDataclass):
     ) -> NDArray:
         """Map physical coordinates to floating indices for a uniform axis.
 
-        Coordinates outside the axis extent are mapped to ``-1`` so ``warp``
-        applies the configured boundary behavior.
+        Out-of-bounds coordinates are left as-is; ``map_coordinates`` applies
+        ``cval`` for any index outside ``[0, size-1]`` when ``mode='constant'``.
         """
-        # Fast O(1) index computation: idx = (coord - axis0) / step
-        idx = (coord - axis0) * inv_step
-        # Out-of-bounds indices are masked to -1, triggering warp's boundary mode.
-        return asarray(
-            where((idx < 0.0) | (idx > (size - 1)), -1.0, idx),
-            dtype=float,
-        )
+        return (coord - axis0) * inv_step
 
 
 class MosaicImageStraightener:
@@ -437,8 +441,8 @@ class MosaicMappedImage:
                         data = data.data / res.data
                 else:
                     data = data / res.data
-                data = warp(
-                    data.values[:, :], xform, cval=nan)
+                data = map_coordinates(
+                    data.values[:, :], xform, cval=nan, order=1, prefilter=False)
                 out = DataArray(data*10, coords={
                     'y': (
                         ('y',),
