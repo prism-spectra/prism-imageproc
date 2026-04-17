@@ -8,24 +8,16 @@ except metadata.PackageNotFoundError:
     __version__ = '0.0.2'
 
 from .straighten_image import (
-    MosaicImageMapper,
-    MosaicImageStraightener,
-    MosaicMappedImage,
-    ScaleType,
-    TranslationType,
-    PixelSizeType,
-    TransformMatrix,
+    ImageStraightener,
+    MappedImage,
 )
 from . import utils
+from .internals import PaddingMode
 
 __all__ = [
-    "MosaicImageMapper",
-    "MosaicImageStraightener",
-    "MosaicMappedImage",
-    "ScaleType",
-    "TranslationType",
-    "PixelSizeType",
-    "TransformMatrix",
+    "ImageStraightener",
+    "MappedImage",
+    "internals",
     "utils",
     "__version__",
 ]
