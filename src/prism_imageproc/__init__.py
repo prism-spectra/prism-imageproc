@@ -1,7 +1,7 @@
 import importlib.metadata as metadata
 
 try:
-    __version__ = metadata.version(__package__ or 'mss_imageproc')
+    __version__ = metadata.version(__package__ or 'prism_imageproc')
 except metadata.PackageNotFoundError:
     # Fallback version if package metadata is not found. 
     # This should be updated if the version is changed in pyproject.toml.
