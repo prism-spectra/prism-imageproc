@@ -58,33 +58,29 @@ class ImageStraightener:
                 tmpdir.mkdir(exist_ok=True, parents=True)
                 tar.extractall(path=tmpdir)
                 imaps = {}
-                for dsdir in tmpdir.iterdir():
-                    if not dsdir.is_dir():
-                        # Load the mapper
-                        if dsdir.suffix == '.nc' and '_mapper' in dsdir.stem:
-                            ds = load_dataset(dsdir)
-                            mapper = MosaicImageMapper(
-                                source_x=ds['source_x'].values,
-                                source_y=ds['source_y'].values,
-                                target_x=ds['target_x'].values,
-                                target_y=ds['target_y'].values,
-                                pixel_size=(ds.attrs['pixel_size_x'], ds.attrs['pixel_size_y']),
-                                bounds_x=(ds.attrs['bounds_x_0'], ds.attrs['bounds_x_1']),
-                                bounds_y=(ds.attrs['bounds_y_0'], ds.attrs['bounds_y_1']),
-                                transform=TransformMatrix.from_matrix(ds['transform_matrix'].values),
-                            )
-                    else:
-                        # Load the curve maps
-                        win_name = dsdir.name
-                        datasets = []
-                        for dsfile in natsorted(dsdir.iterdir()):
-                            if not dsfile.is_file() or dsfile.suffix != '.nc':
-                                continue
-                            ds = load_dataset(dsfile)
-                            datasets.append(ds)
-                        imaps[win_name] = datasets
+                for dsdir in natsorted(tmpdir.iterdir()):
+                    if dsdir.is_dir() or dsdir.suffix != '.nc':
+                        continue
+                    if '_mapper' in dsdir.stem:
+                        ds = load_dataset(dsdir)
+                        mapper = MosaicImageMapper(
+                            source_x=ds['source_x'].values,
+                            source_y=ds['source_y'].values,
+                            target_x=ds['target_x'].values,
+                            target_y=ds['target_y'].values,
+                            pixel_size=(ds.attrs['pixel_size_x'], ds.attrs['pixel_size_y']),
+                            bounds_x=(ds.attrs['bounds_x_0'], ds.attrs['bounds_x_1']),
+                            bounds_y=(ds.attrs['bounds_y_0'], ds.attrs['bounds_y_1']),
+                            transform=TransformMatrix.from_matrix(ds['transform_matrix'].values),
+                        )
+                    elif 'window_name' in load_dataset(dsdir).attrs:
+                        ds = load_dataset(dsdir)
+                        win_name = str(ds.attrs['window_name'])
+                        imaps.setdefault(win_name, []).append(ds)
                 if mapper is None:
                     raise ValueError('MosaicImageMapper not found in archive')
+                if not imaps:
+                    raise ValueError('No window datasets found in archive')
                 return cls(imaps, mapper)
 
     @property
