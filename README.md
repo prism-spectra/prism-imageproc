@@ -28,6 +28,10 @@ import matplotlib.pyplot as plt # For plotting the straightened images
 
 # Create a straightener object using the instrument configuration file
 straightener = ImageStraightener.from_instrument_config('path/to/instrument_curve_maps.bin')
+# Get version of the library that produced this
+lib_version = straightener.lib_version
+# Get hash of the instrument model that produced this
+instr_version = straightener.instr_version
 # Load an image and map it onto the mosaic grid
 image_array = ...  # Load your image as a 2D NumPy array
 mapped_image = straightener.load_image(image_array)

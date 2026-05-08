@@ -31,6 +31,11 @@ class ImageStraightener:
         self._mapper = mapper
         self._imaps = imaps
         self._windows = list(imaps.keys())
+        self._metadata = {
+            'lib_version': str(getattr(mapper, 'lib_version', 'unknown')),
+            'instrument': str(getattr(mapper, 'instrument', 'unknown')),
+            'instr_version': str(getattr(mapper, 'instr_version', 'unknown')),
+        }
 
     @classmethod
     def load(
@@ -73,6 +78,9 @@ class ImageStraightener:
                             bounds_y=(ds.attrs['bounds_y_0'], ds.attrs['bounds_y_1']),
                             transform=TransformMatrix.from_matrix(ds['transform_matrix'].values),
                         )
+                        for key in ('lib_version', 'instrument', 'instr_version'):
+                            if ds.attrs.get(key) is not None:
+                                setattr(mapper, key, str(ds.attrs[key]))
                     elif 'window_name' in load_dataset(dsdir).attrs:
                         ds = load_dataset(dsdir)
                         win_name = str(ds.attrs['window_name'])
@@ -91,6 +99,26 @@ class ImageStraightener:
             List[str]: The list of available window names for straightening.
         """
         return self._windows
+
+    @property
+    def metadata(self) -> Dict[str, str]:
+        """Return model metadata associated with this straightener."""
+        return dict(self._metadata)
+
+    @property
+    def lib_version(self) -> str:
+        """Version of the model/toolbox used to generate this straightener."""
+        return self._metadata['lib_version']
+
+    @property
+    def instrument(self) -> str:
+        """Instrument name associated with this straightener."""
+        return self._metadata['instrument']
+
+    @property
+    def instr_version(self) -> str:
+        """Stable instrument configuration version/hash."""
+        return self._metadata['instr_version']
 
     def load_image(
         self,
