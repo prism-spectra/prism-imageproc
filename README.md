@@ -1,6 +1,6 @@
 # prism-imageproc
 
-[![DOI](https://zenodo.org/badge/1201252361.svg)](https://zenodo.org/badge/latestdoi/1201252361)
+[![DOI](https://zenodo.org/badge/1254713531.svg)](https://zenodo.org/badge/latestdoi/1254713531)
 
 This repository contains the Python library `prism-imageproc`, which provides tools for processing images
 from instruments modeled using SpectroForge (https://github.com/prism-spectra/SpectroForge). The library includes functions
